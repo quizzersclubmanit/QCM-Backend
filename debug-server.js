@@ -5,10 +5,7 @@ const app = express();
 const PORT = 3001;
 
 // Basic middleware
-app.use(cors({
-  origin: 'https://quizzersclub/in',
-  credentials: true
-}));
+app.use(cors());
 app.use(express.json());
 
 // Simple test routes
