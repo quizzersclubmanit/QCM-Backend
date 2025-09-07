@@ -10,14 +10,7 @@ cd Prisma-Backend
 npm install
 ```
 
-### 2. Environment Configuration
-Create a `.env` file in the root directory with the following variables:
-```env
-DATABASE_URL="mongodb+srv://pukhrajmotwani239_db_user:mVV1RAhYTsankSuu@cluster0.ffgafm5.mongodb.net/qcm_database"
-JWT_SECRET="QCM@1234"
-FRONTEND_URL="http://localhost:5173"
-PORT=3001
-```
+
 
 **Note**: Make sure your `.env` file uses `JWT_SECRET` (not `JET_SECRET`)
 
