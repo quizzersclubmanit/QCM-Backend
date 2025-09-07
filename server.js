@@ -11,8 +11,14 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Middleware
-app.use(cors());
+const allowedOrigin = "https://www.quizzersclub.in";
+
+app.use(
+  cors({
+    origin: allowedOrigin,   // must be your frontend origin
+    credentials: true        // allows cookies/auth headers
+  })
+);
 app.use(express.json());
 app.use(cookieParser());
 
