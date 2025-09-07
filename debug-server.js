@@ -6,7 +6,7 @@ const PORT = 3001;
 
 // Basic middleware
 app.use(cors({
-  origin: 'http://localhost:5173',
+  origin: 'https://quizzersclub/in',
   credentials: true
 }));
 app.use(express.json());
