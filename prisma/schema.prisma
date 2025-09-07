@@ -1,0 +1,63 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  email     String   @unique
+  name      String
+  password  String
+  phoneNo   String
+  city      String
+  school    String
+  sex       String
+  userId    String   @unique @default(uuid())
+  docId     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relations
+  quizScores QuizScore[]
+  
+  @@map("users")
+}
+
+model QuizScore {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String   @db.ObjectId
+  user      User     @relation(fields: [userId], references: [id])
+  score     Int
+  section   Int
+  quizId    String?
+  disqualified Boolean @default(false)
+  createdAt DateTime @default(now())
+  
+  @@map("quiz_scores")
+}
+
+model Quiz {
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  question     String
+  options      String[]
+  correctAnswer String
+  section      Int
+  supportingPic String?
+  optionsContainImg Boolean @default(false)
+  inActive     Boolean @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  
+  @@map("quizzes")
+}
