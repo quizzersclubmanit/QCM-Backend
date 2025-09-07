@@ -2,10 +2,17 @@ import express from 'express';
 import cors from 'cors';
 
 const app = express();
-const PORT = 3001;
+const PORT = 3000;
 
 // Basic middleware
-app.use(cors());
+const allowedOrigin = "https://www.quizzersclub.in";
+
+app.use(
+  cors({
+    origin: allowedOrigin,   // must be your frontend origin
+    credentials: true        // allows cookies/auth headers
+  })
+);
 app.use(express.json());
 
 // Simple test routes
