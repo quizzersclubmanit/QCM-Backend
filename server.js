@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
+import session from 'express-session'; // Add this import
 import dotenv from 'dotenv';
 import authRoutes from './routes/auth.js';
 import userRoutes from './routes/user.js';
@@ -11,30 +12,34 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Frontend URL
 const allowedOrigin = "https://www.quizzersclub.in";
 
+// Enable CORS for frontend with credentials
 app.use(
   cors({
-    origin: allowedOrigin,   // must be your frontend origin
-    credentials: true        // allows cookies/auth headers
+    origin: allowedOrigin,
+    credentials: true // allow cookies/auth headers
   })
 );
 
+// Parse JSON and cookies
+app.use(express.json());
+app.use(cookieParser());
+
+// Session setup
 app.use(
   session({
-    secret: 'process.env.JWT_SECRET',
+    secret: process.env.JWT_SECRET || 'default-secret', // use environment variable
     resave: false,
     saveUninitialized: false,
     cookie: {
-      httpOnly: true,    // prevents JS from accessing it
-      secure: true,      // must be true for HTTPS
-      sameSite: 'none'   // allows cross-site cookie
+      httpOnly: true,    // JS cannot access cookie
+      secure: true,      // HTTPS only
+      sameSite: 'none'   // allow cross-origin cookies
     }
   })
 );
-
-app.use(express.json());
-app.use(cookieParser());
 
 // Routes
 app.use('/api/auth', authRoutes);
@@ -72,6 +77,7 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: 'Something went wrong!' });
 });
 
+// Start server
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
 });
