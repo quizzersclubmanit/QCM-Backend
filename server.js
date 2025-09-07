@@ -19,6 +19,20 @@ app.use(
     credentials: true        // allows cookies/auth headers
   })
 );
+
+app.use(
+  session({
+    secret: 'process.env.JWT_SECRET',
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+      httpOnly: true,    // prevents JS from accessing it
+      secure: true,      // must be true for HTTPS
+      sameSite: 'none'   // allows cross-site cookie
+    }
+  })
+);
+
 app.use(express.json());
 app.use(cookieParser());
 
