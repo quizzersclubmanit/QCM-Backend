@@ -13,15 +13,35 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Frontend URL
-const allowedOrigin = "https://www.quizzersclub.in";
+// const allowedOrigin = "https://www.quizzersclub.in";
 
-// Enable CORS for frontend with credentials
+// // Enable CORS for frontend with credentials
+// app.use(
+//   cors({
+//     origin: allowedOrigin || "http://localhost:5173",
+//     credentials: true // allow cookies/auth headers
+//   })
+// );
+
+
+const allowedOrigins = [
+  'https://www.quizzersclub.in',  // production
+  'http://localhost:5173'         // local dev
+];
+
 app.use(
   cors({
-    origin: allowedOrigin || "http://localhost:5173",
-    credentials: true // allow cookies/auth headers
+    origin: function (origin, callback) {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
+    credentials: true
   })
 );
+
 
 // Parse JSON and cookies
 app.use(express.json());
