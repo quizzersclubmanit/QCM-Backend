@@ -29,35 +29,42 @@ const allowedOrigins = [
   'http://localhost:5173'         // local dev
 ];
 
-app.use(
-  cors({
-    origin: function (origin, callback) {
-      if (!origin || allowedOrigins.includes(origin)) {
-        callback(null, true);
-      } else {
-        callback(new Error('Not allowed by CORS'));
-      }
-    },
-    credentials: true
-  })
-);
+// CORS configuration
+app.use(cors({
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    
+    if (allowedOrigins.indexOf(origin) === -1) {
+      const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
+      return callback(new Error(msg), false);
+    }
+    return callback(null, true);
+  },
+  credentials: true,
+  exposedHeaders: ['set-cookie']
+}));
 
 
 // Parse JSON and cookies
 app.use(express.json());
-app.use(cookieParser());
+app.use(express.urlencoded({ extended: true }));
+app.use(cookieParser(process.env.COOKIE_SECRET || 'your-secret-key-here'));
 
 // Session setup
 app.use(
   session({
-    secret: process.env.JWT_SECRET || 'default-secret', // use environment variable
-    resave: false,
-    saveUninitialized: false,
+    secret: process.env.JWT_SECRET || 'default-secret',
+    resave: true,  // Changed from false to true
+    saveUninitialized: true,  // Changed from false to true
     cookie: {
-      httpOnly: true,    // JS cannot access cookie
-      secure: true,      // HTTPS only
-      sameSite: 'none'   // allow cross-origin cookies
-    }
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',  // Set to true in production
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+      domain: process.env.NODE_ENV === 'production' ? '.quizzersclub.in' : undefined
+    },
+    name: 'qcm.sid'  // Give the session cookie a name
   })
 );
 
@@ -101,3 +108,4 @@ app.use((err, req, res, next) => {
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
 });
+
