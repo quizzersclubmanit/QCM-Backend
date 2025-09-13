@@ -18,7 +18,7 @@ const allowedOrigin = "https://www.quizzersclub.in";
 // Enable CORS for frontend with credentials
 app.use(
   cors({
-    origin: allowedOrigin,
+    origin: allowedOrigin || "http://localhost:5173",
     credentials: true // allow cookies/auth headers
   })
 );
