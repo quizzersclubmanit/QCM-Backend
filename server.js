@@ -1,7 +1,8 @@
 import express from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
-import session from 'express-session'; // Add this import
+import session from 'express-session';
+import MongoDBStore from 'connect-mongodb-session';
 import dotenv from 'dotenv';
 import authRoutes from './routes/auth.js';
 import userRoutes from './routes/user.js';
@@ -11,6 +12,23 @@ dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+// MongoDB session store setup
+const MongoDBStoreSession = MongoDBStore(session);
+const store = new MongoDBStoreSession({
+  uri: process.env.DATABASE_URL || 'mongodb://localhost:27017/qcm',
+  collection: 'sessions',
+  expires: 1000 * 60 * 60 * 24 * 7, // 7 days
+  connectionOptions: {
+    useNewUrlParser: true,
+    useUnifiedTopology: true,
+  }
+});
+
+// Catch session store errors
+store.on('error', function(error) {
+  console.error('Session store error:', error);
+});
 
 // Frontend URL
 // const allowedOrigin = "https://www.quizzersclub.in";
@@ -42,7 +60,11 @@ app.use(cors({
     return callback(null, true);
   },
   credentials: true,
-  exposedHeaders: ['set-cookie']
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-access-token', 'token', 'X-Requested-With', 'Accept', 'Origin'],
+  exposedHeaders: ['set-cookie'],
+  methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
+  preflightContinue: false,
+  optionsSuccessStatus: 200
 }));
 
 
@@ -54,17 +76,20 @@ app.use(cookieParser(process.env.COOKIE_SECRET || 'your-secret-key-here'));
 // Session setup
 app.use(
   session({
-    secret: process.env.JWT_SECRET || 'default-secret',
-    resave: true,  // Changed from false to true
-    saveUninitialized: true,  // Changed from false to true
+    secret: process.env.SESSION_SECRET || process.env.JWT_SECRET || 'your-secret-key-here',
+    resave: false,
+    saveUninitialized: false,
+    store: store,
     cookie: {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',  // Set to true in production
+      secure: process.env.NODE_ENV === 'production',
       sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-      domain: process.env.NODE_ENV === 'production' ? '.quizzersclub.in' : undefined
+      domain: process.env.NODE_ENV === 'production' ? '.quizzersclub.in' : undefined,
+      path: '/'
     },
-    name: 'qcm.sid'  // Give the session cookie a name
+    name: 'qcm.sid',
+    rolling: true // Reset the maxAge on every request
   })
 );
 
@@ -81,6 +106,17 @@ app.get('/api/health', (req, res) => {
 // Test endpoint
 app.get('/api/test', (req, res) => {
   res.json({ success: true, message: 'Backend connection working' });
+});
+
+// Debug auth endpoint
+app.get('/api/debug/auth', (req, res) => {
+  res.json({
+    headers: req.headers,
+    cookies: req.cookies,
+    signedCookies: req.signedCookies,
+    authorization: req.headers.authorization,
+    timestamp: new Date().toISOString()
+  });
 });
 
 // Root endpoint
