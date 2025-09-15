@@ -94,6 +94,7 @@ const requireAdmin = async (req, res, next) => {
     const adminEmails = [
       'admin@quizzersclub.in',
       'quizzersclub@gmail.com',
+      'admin@qcm.in',
       // Add more admin emails as needed
     ];
     
@@ -116,4 +117,3 @@ const requireAdmin = async (req, res, next) => {
 };
 
 export { authenticateToken, requireAdmin };
-
