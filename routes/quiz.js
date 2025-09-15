@@ -98,6 +98,45 @@ router.post('/create', requireAdmin, async (req, res) => {
   }
 });
 
+// Alias: GET /api/quiz -> same as /api/quiz/list (for frontend compatibility)
+router.get('/', authenticateToken, async (req, res) => {
+  try {
+    const { section, inActive } = req.query;
+    const where = {};
+
+    if (section !== undefined) {
+      const sectionNum = parseInt(section);
+      if (isNaN(sectionNum)) {
+        return res.status(400).json({ error: 'Section must be a valid number' });
+      }
+      where.section = sectionNum;
+    }
+
+    if (inActive !== undefined) {
+      if (inActive === 'true') where.inActive = true;
+      else if (inActive === 'false') where.inActive = false;
+      else return res.status(400).json({ error: 'inActive must be true or false' });
+    }
+
+    const quizzes = await prisma.quiz.findMany({
+      where,
+      orderBy: [
+        { section: 'asc' },
+        { createdAt: 'asc' }
+      ]
+    });
+
+    res.json({
+      message: 'Quizzes retrieved successfully',
+      count: quizzes.length,
+      quizzes
+    });
+  } catch (error) {
+    console.error('Get quizzes (alias) error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // GET /api/quiz/list - Get all quiz questions
 router.get('/list', authenticateToken, async (req, res) => {
   try {
