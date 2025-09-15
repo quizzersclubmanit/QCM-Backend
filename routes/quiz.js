@@ -1,6 +1,6 @@
 import express from 'express';
 import prisma from '../lib/prisma.js';
-import { authenticateToken } from '../middleware/auth.js';
+import { authenticateToken, requireAdmin } from '../middleware/auth.js';
 
 const router = express.Router();
 
@@ -56,7 +56,7 @@ const validateQuizData = (data, isUpdate = false) => {
 };
 
 // POST /api/quiz/create - Create a new quiz question
-router.post('/create', authenticateToken, async (req, res) => {
+router.post('/create', requireAdmin, async (req, res) => {
   try {
     const { question, options, correctAnswer, section, supportingPic, optionsContainImg, inActive } = req.body;
     
@@ -144,7 +144,7 @@ router.get('/list', authenticateToken, async (req, res) => {
 });
 
 // PUT /api/quiz/:id - Update existing quiz
-router.put('/:id', authenticateToken, async (req, res) => {
+router.put('/:id', requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
     const updateData = req.body;
@@ -221,7 +221,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
 });
 
 // DELETE /api/quiz/:id - Delete quiz question
-router.delete('/:id', authenticateToken, async (req, res) => {
+router.delete('/:id', requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
     
