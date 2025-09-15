@@ -44,11 +44,12 @@ store.on('error', function(error) {
 
 const allowedOrigins = [
   'https://www.quizzersclub.in',  // production
-  'http://localhost:5173'         // local dev
+  'http://localhost:5173',        // local dev
+  'http://127.0.0.1:5173'         // local dev (alternate)
 ];
 
 // CORS configuration
-app.use(cors({
+const corsOptions = {
   origin: function (origin, callback) {
     // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin) return callback(null, true);
@@ -65,7 +66,12 @@ app.use(cors({
   methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
   preflightContinue: false,
   optionsSuccessStatus: 200
-}));
+};
+
+app.use(cors(corsOptions));
+
+// Explicitly handle preflight
+app.options('*', cors(corsOptions));
 
 
 // Parse JSON and cookies
@@ -144,4 +150,3 @@ app.use((err, req, res, next) => {
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
 });
-
