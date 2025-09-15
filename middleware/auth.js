@@ -3,21 +3,37 @@ import prisma from '../lib/prisma.js';
 
 const authenticateToken = async (req, res, next) => {
   try {
-    // Try to get token from cookies first, then from Authorization header
-    let token = req.cookies?.token || req.signedCookies?.token;
-    
-    // If no token in cookies, check Authorization header
-    if (!token && req.headers.authorization) {
-      const authHeader = req.headers.authorization;
-      if (authHeader.startsWith('Bearer ')) {
-        token = authHeader.substring(7); // Remove 'Bearer ' from the token
-      }
+    // Lightweight debug logging
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('Auth headers:', req.headers && req.headers.authorization ? 'Authorization present' : 'No Authorization');
     }
-    
+
+    // Robust token extraction supporting multiple headers/cookies
+    const extractToken = (req) => {
+      let t = null;
+      const hdrAuth = req.headers['authorization'] || req.headers['Authorization'];
+      if (hdrAuth) {
+        if (typeof hdrAuth === 'string' && hdrAuth.startsWith('Bearer ')) {
+          t = hdrAuth.slice(7).trim();
+        } else if (typeof hdrAuth === 'string') {
+          t = hdrAuth.trim();
+        }
+      }
+      if (!t && req.headers['x-access-token']) t = String(req.headers['x-access-token']).trim();
+      if (!t && req.headers['token']) t = String(req.headers['token']).trim();
+      if (!t) {
+        const cookieToken = req.cookies?.token || req.signedCookies?.token || req.cookies?.accessToken || req.cookies?.authToken;
+        if (cookieToken) t = String(cookieToken).trim();
+      }
+      return t || null;
+    };
+
+    const token = extractToken(req);
+
     if (!token) {
       return res.status(401).json({ 
         error: 'Authentication required',
-        message: 'No authentication token provided'
+        message: 'NO AUTHENTICATION TOKEN PROVIDED'
       });
     }
 
@@ -57,9 +73,47 @@ const authenticateToken = async (req, res, next) => {
     next();
   } catch (error) {
     console.error('Auth middleware error:', error);
-    return res.status(401).json({ error: 'Invalid token' });
+    return res.status(401).json({ error: 'Invalid or expired token' });
   }
 };
 
-export { authenticateToken };
+// Admin authorization middleware
+const requireAdmin = async (req, res, next) => {
+  try {
+    // First authenticate the token
+    await new Promise((resolve, reject) => {
+      authenticateToken(req, res, (err) => {
+        if (err) reject(err);
+        else resolve();
+      });
+    });
+
+    // Check if user has admin privileges
+    // For now, we'll check if the user email contains 'admin' or is a specific admin email
+    // You can modify this logic based on your admin identification system
+    const adminEmails = [
+      'admin@quizzersclub.in',
+      'quizzersclub@gmail.com',
+      // Add more admin emails as needed
+    ];
+    
+    const isAdmin = adminEmails.includes(req.user.email) || 
+                   req.user.email.includes('admin') ||
+                   req.user.email.includes('quizzersclub');
+
+    if (!isAdmin) {
+      return res.status(403).json({
+        error: 'Access denied',
+        message: 'Admin privileges required for this operation'
+      });
+    }
+
+    next();
+  } catch (error) {
+    console.error('Admin middleware error:', error);
+    return res.status(401).json({ error: 'Authentication failed' });
+  }
+};
+
+export { authenticateToken, requireAdmin };
 
