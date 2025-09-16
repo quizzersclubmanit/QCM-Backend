@@ -17,7 +17,7 @@ const generateToken = (userId) => {
 router.post('/signup', async (req, res) => {
   try {
     const { email, password, name, phoneNo, city, school, sex } = req.body;
-    
+
     // Debug: Log the received data
     console.log('Signup request body:', {
       email,
@@ -29,7 +29,7 @@ router.post('/signup', async (req, res) => {
       sex,
       fullBody: req.body
     });
-    
+
     // Use phone if contactNo is not provided (for frontend compatibility)
     // const phoneNumber = contactNo || phone;
 
@@ -96,12 +96,11 @@ router.post('/signup', async (req, res) => {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
-      maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+      maxAge: 30 * 24 * 60 * 60 * 1000 // 7 days
     });
 
     res.status(201).json({
       message: 'User created successfully',
-      token, // expose JWT so frontend can store and send as Bearer
       user: {
         ...user,
         $id: user.userId // For compatibility with existing frontend
@@ -141,10 +140,10 @@ router.post('/login', async (req, res) => {
     const token = generateToken(user.id);
 
     // Set cookie
-    res.cookie('token', token, {
+    res.cookie("token", token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
       maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
     });
 
@@ -171,17 +170,39 @@ router.post('/login', async (req, res) => {
 });
 
 // Get current user
-router.get('/me', authenticateToken, async (req, res) => {
+router.get("/me", async (req, res) => {
   try {
-    res.json({
-      user: {
-        ...req.user,
-        $id: req.user.userId // For compatibility with existing frontend
-      }
+    const token = req.cookies.token;
+    if (!token) {
+      return res.status(401).json({ user: null }); // ✅ just return null, not 401
+    }
+
+    // Verify token
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+    // Fetch user from DB
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.userId },
+      select: {
+        id: true,
+        userId: true,
+        name: true,
+        phoneNo: true,
+        city: true,
+        school: true,
+        sex: true,
+        createdAt: true,
+      },
     });
+
+    if (!user) {
+      return res.status(401).json({ user: null }); // no error, just null
+    }
+
+    return res.json({ user });
   } catch (error) {
-    console.error('Get current user error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error("Auth check error:", error);
+    return res.status(401).json({ user: null }); // treat invalid token as "no user"
   }
 });
 
@@ -195,7 +216,7 @@ router.post('/logout', (req, res) => {
 router.patch('/phone', authenticateToken, async (req, res) => {
   try {
     const { phone } = req.body;
-    
+
     if (!phone) {
       return res.status(400).json({ error: 'Phone number is required' });
     }
