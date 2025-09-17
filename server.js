@@ -18,7 +18,7 @@ const MongoDBStoreSession = MongoDBStore(session);
 const store = new MongoDBStoreSession({
   uri: process.env.DATABASE_URL || 'mongodb://localhost:27017/qcm',
   collection: 'sessions',
-  expires: 1000 * 60 * 60 * 24 * 7, // 7 days
+  expires: 1000 * 60 * 60 * 24 * 30, // 30 days
   connectionOptions: {
     useNewUrlParser: true,
     useUnifiedTopology: true,

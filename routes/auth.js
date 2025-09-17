@@ -10,7 +10,7 @@ const router = express.Router();
 
 // Generate JWT token
 const generateToken = (userId) => {
-  return jwt.sign({ userId }, process.env.JWT_SECRET, { expiresIn: '7d' });
+  return jwt.sign({ userId }, process.env.JWT_SECRET, { expiresIn: '30d' });
 };
 
 // Signup route
@@ -96,7 +96,9 @@ router.post('/signup', async (req, res) => {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
-      maxAge: 30 * 24 * 60 * 60 * 1000 // 7 days
+      maxAge: 30 * 24 * 60 * 60 * 1000,// 30 days
+      secure: true,       // must be true for HTTPS
+      sameSite: "none"
     });
 
     res.status(201).json({
@@ -144,7 +146,9 @@ router.post('/login', async (req, res) => {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
-      maxAge: 30 * 24 * 60 * 60 * 1000 // 7 days
+      maxAge: 30 * 24 * 60 * 60 * 1000,// 30 days
+      secure: true,       // must be true for HTTPS
+      sameSite: "none"  
     });
 
     res.json({
@@ -172,9 +176,10 @@ router.post('/login', async (req, res) => {
 // Get current user
 router.get("/me", async (req, res) => {
   try {
+    console.log('Auth check - cookies:', req.cookies);
     const token = req.cookies.token;
     if (!token) {
-      return res.status(401).json({ user: null }); // ✅ just return null, not 401
+      return res.json({ user: null }); // ✅ just return null, not 401
     }
 
     // Verify token
@@ -196,16 +201,15 @@ router.get("/me", async (req, res) => {
     });
 
     if (!user) {
-      return res.status(401).json({ user: null }); // no error, just null
+      return res.json({ user: null }); // no error, just null
     }
 
     return res.json({ user });
   } catch (error) {
     console.error("Auth check error:", error);
-    return res.status(401).json({ user: null }); // treat invalid token as "no user"
+    return res.json({ user: null }); // treat invalid token as "no user"
   }
 });
-
 // Logout route
 router.post('/logout', (req, res) => {
   res.clearCookie('token');
