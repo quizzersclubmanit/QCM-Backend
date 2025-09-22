@@ -2,7 +2,7 @@ import express from "express";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import { v4 as uuidv4 } from "uuid";
-import prisma from "../prismaClient.js"; // your prisma client
+import prisma from "../lib/prisma.js"; // your prisma client
 import { authenticateToken } from "../middleware/auth.js";
 
 const router = express.Router();
