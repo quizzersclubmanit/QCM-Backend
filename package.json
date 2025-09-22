@@ -18,6 +18,7 @@
   "description": "QCM Backend with Prisma and MongoDB",
   "dependencies": {
     "@prisma/client": "^6.15.0",
+    "bcrypt": "^6.0.0",
     "bcryptjs": "^3.0.2",
     "connect-mongodb-session": "^5.0.0",
     "cookie-parser": "^1.4.7",
