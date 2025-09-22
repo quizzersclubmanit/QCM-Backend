@@ -30,18 +30,6 @@ store.on('error', function(error) {
   console.error('Session store error:', error);
 });
 
-// Frontend URL
-// const allowedOrigin = "https://www.quizzersclub.in";
-
-// // Enable CORS for frontend with credentials
-// app.use(
-//   cors({
-//     origin: allowedOrigin || "http://localhost:5173",
-//     credentials: true // allow cookies/auth headers
-//   })
-// );
-
-
 const allowedOrigins = [
   'https://www.quizzersclub.in',  // production
   'http://localhost:5173',        // local dev
@@ -51,7 +39,6 @@ const allowedOrigins = [
 // CORS configuration
 const corsOptions = {
   origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin) return callback(null, true);
     
     if (allowedOrigins.indexOf(origin) === -1) {
@@ -61,12 +48,22 @@ const corsOptions = {
     return callback(null, true);
   },
   credentials: true,
-  allowedHeaders: ['Content-Type', 'Authorization', 'x-access-token', 'token', 'X-Requested-With', 'Accept', 'Origin'],
+  allowedHeaders: [
+    'Content-Type',
+    'Authorization',
+    'x-access-token',
+    'token',
+    'X-Requested-With',
+    'Accept',
+    'Origin',
+    'cache-control'   // 👈 add this
+  ],
   exposedHeaders: ['set-cookie'],
   methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
   preflightContinue: false,
   optionsSuccessStatus: 200
 };
+
 
 app.use(cors(corsOptions));
 
