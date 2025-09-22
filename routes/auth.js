@@ -29,11 +29,7 @@ router.post('/signup', async (req, res) => {
       sex,
       fullBody: req.body
     });
-
-    // Use phone if contactNo is not provided (for frontend compatibility)
-    // const phoneNumber = contactNo || phone;
-
-    // Validation
+    
     if (!email || !password || !name || !phoneNo || !city || !school || !sex) {
       console.log('Validation failed - missing fields:', {
         email: !!email,
@@ -101,6 +97,8 @@ router.post('/signup', async (req, res) => {
       sameSite: "none"
     });
 
+    req.session.userId = user.id;
+
     res.status(201).json({
       message: 'User created successfully',
       user: {
@@ -140,6 +138,7 @@ router.post('/login', async (req, res) => {
 
     // Generate token
     const token = generateToken(user.id);
+    req.session.userId = user.id;
 
     // Set cookie
     res.cookie("token", token, {
@@ -211,28 +210,30 @@ router.get("/me", async (req, res) => {
 
 // Logout route
 router.post("/logout", (req, res) => {
-  try {
-    // Destroy session
-    req.session.destroy(err => {
-      if (err) {
-        console.error("Logout error:", err);
-        return res.status(500).json({ error: "Failed to logout" });
-      }
+  req.session.destroy(err => {
+    if (err) {
+      console.error("Logout error:", err);
+      return res.status(500).json({ error: "Failed to logout" });
+    }
 
-      // Clear the cookie on the client
-      res.clearCookie("qcm.sid", {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
-        path: "/"
-      });
-
-      return res.json({ message: "Logged out successfully" });
+    // Clear session cookie
+    res.clearCookie("qcm.sid", {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+      path: "/"
     });
-  } catch (error) {
-    console.error("Logout error:", error);
-    res.status(500).json({ error: "Internal server error" });
-  }
+
+    // Clear token cookie (if you still set it)
+    res.clearCookie("token", {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+      path: "/"
+    });
+
+    return res.json({ message: "Logged out successfully" });
+  });
 });
 
 
