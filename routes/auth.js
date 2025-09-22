@@ -210,10 +210,31 @@ router.get("/me", async (req, res) => {
 });
 
 // Logout route
-router.post('/logout', (req, res) => {
-  res.clearCookie('token');
-  res.json({ message: 'Logout successful' });
+router.post("/logout", (req, res) => {
+  try {
+    // Destroy session
+    req.session.destroy(err => {
+      if (err) {
+        console.error("Logout error:", err);
+        return res.status(500).json({ error: "Failed to logout" });
+      }
+
+      // Clear the cookie on the client
+      res.clearCookie("qcm.sid", {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+        path: "/"
+      });
+
+      return res.json({ message: "Logged out successfully" });
+    });
+  } catch (error) {
+    console.error("Logout error:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
 });
+
 
 // Update phone number
 router.patch('/phone', authenticateToken, async (req, res) => {
