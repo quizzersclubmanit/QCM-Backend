@@ -37,30 +37,44 @@ const allowedOrigins = [
 ];
 
 // CORS configuration
-const corsOptions = {
-  origin: function (origin, callback) {
-    if (!origin) return callback(null, true);
+// const corsOptions = {
+//   origin: function (origin, callback) {
+//     if (!origin) return callback(null, true);
 
-    if (allowedOrigins.indexOf(origin) === -1) {
-      const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
-      return callback(new Error(msg), false);
-    }
-    return callback(null, true);
-  },
+//     if (allowedOrigins.indexOf(origin) === -1) {
+//       const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
+//       return callback(new Error(msg), false);
+//     }
+//     return callback(null, true);
+//   },
+//   credentials: true,
+//   allowedHeaders: [
+//     'Content-Type',
+//     'Authorization',
+//     'x-access-token',
+//     'token',
+//     'X-Requested-With',
+//     'Accept',
+//     'Origin',
+//     'cache-control'
+//   ],
+//   exposedHeaders: ['set-cookie'],
+//   methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
+//   preflightContinue: false,
+//   optionsSuccessStatus: 200
+// };
+const corsOptions = {
+  origin: allowedOrigins, // explicitly allow frontend
   credentials: true,
   allowedHeaders: [
-    'Content-Type',
-    'Authorization',
-    'x-access-token',
-    'token',
-    'X-Requested-With',
-    'Accept',
-    'Origin',
-    'cache-control'
+    "Content-Type",
+    "Authorization",
+    "X-Requested-With",
+    "Accept",
+    "Origin",
+    "Cache-Control"
   ],
-  exposedHeaders: ['set-cookie'],
-  methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
-  preflightContinue: false,
+  methods: ["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"],
   optionsSuccessStatus: 200
 };
 
