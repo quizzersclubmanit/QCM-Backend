@@ -26,7 +26,7 @@ const store = new MongoDBStoreSession({
 });
 
 // Catch session store errors
-store.on('error', function(error) {
+store.on('error', function (error) {
   console.error('Session store error:', error);
 });
 
@@ -40,7 +40,7 @@ const allowedOrigins = [
 const corsOptions = {
   origin: function (origin, callback) {
     if (!origin) return callback(null, true);
-    
+
     if (allowedOrigins.indexOf(origin) === -1) {
       const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
       return callback(new Error(msg), false);
@@ -56,7 +56,7 @@ const corsOptions = {
     'X-Requested-With',
     'Accept',
     'Origin',
-    'cache-control'   // 👈 add this
+    'cache-control'
   ],
   exposedHeaders: ['set-cookie'],
   methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
@@ -124,8 +124,8 @@ app.get('/api/debug/auth', (req, res) => {
 
 // Root endpoint
 app.get('/', (req, res) => {
-  res.json({ 
-    message: 'QCM Backend API Server', 
+  res.json({
+    message: 'QCM Backend API Server',
     version: '1.0.0',
     endpoints: {
       health: '/api/health',
