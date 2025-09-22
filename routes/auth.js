@@ -176,18 +176,16 @@ router.post('/login', async (req, res) => {
 // Get current user
 router.get("/me", async (req, res) => {
   try {
-    console.log('Auth check - cookies:', req.cookies);
-    const token = req.cookies.token;
-    if (!token) {
-      return res.json({ user: null }); // ✅ just return null, not 401
-    }
+    // Session user ID is stored in req.session.userId
+    const userId = req.session.userId;
 
-    // Verify token
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    if (!userId) {
+      return res.json({ user: null }); // no session → no user
+    }
 
     // Fetch user from DB
     const user = await prisma.user.findUnique({
-      where: { id: decoded.userId },
+      where: { id: userId },
       select: {
         id: true,
         userId: true,
@@ -201,15 +199,16 @@ router.get("/me", async (req, res) => {
     });
 
     if (!user) {
-      return res.json({ user: null }); // no error, just null
+      return res.json({ user: null }); // user not found
     }
 
     return res.json({ user });
   } catch (error) {
     console.error("Auth check error:", error);
-    return res.json({ user: null }); // treat invalid token as "no user"
+    return res.json({ user: null }); // treat errors as "no user"
   }
 });
+
 // Logout route
 router.post('/logout', (req, res) => {
   res.clearCookie('token');
