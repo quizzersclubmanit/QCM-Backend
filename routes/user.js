@@ -92,7 +92,7 @@ router.get('/profile', authenticateToken, async (req, res) => {
         email: true,
         name: true,
         userId: true,
-        contactNo: true,
+        phoneNo: true, // Fixed: contactNo -> phoneNo
         city: true,
         school: true,
         class: true,
@@ -120,7 +120,7 @@ router.patch('/profile', authenticateToken, async (req, res) => {
     console.log('Request user:', req.user);
     console.log('Request body:', req.body);
     
-    const { name, city, school, contactNo, class: userClass } = req.body;
+    const { name, city, school, phoneNo, class: userClass } = req.body; // Fixed: contactNo -> phoneNo
     
     if (!req.user || !req.user.id) {
       console.error('No user or user ID in request');
@@ -129,14 +129,14 @@ router.patch('/profile', authenticateToken, async (req, res) => {
     
     console.log('Profile PATCH request:', {
       userId: req.user.id,
-      updateData: { name, city, school, contactNo, class: userClass }
+      updateData: { name, city, school, phoneNo, class: userClass } // Fixed: contactNo -> phoneNo
     });
     
     const updateData = {};
     if (name) updateData.name = name;
     if (city) updateData.city = city;
     if (school) updateData.school = school;
-    if (contactNo) updateData.contactNo = contactNo;
+    if (phoneNo) updateData.phoneNo = phoneNo; // Fixed: contactNo -> phoneNo
     if (userClass !== undefined) {
       const parsedClass = parseInt(userClass);
       if (isNaN(parsedClass)) {
@@ -155,7 +155,7 @@ router.patch('/profile', authenticateToken, async (req, res) => {
         email: true,
         name: true,
         userId: true,
-        contactNo: true,
+        phoneNo: true, // Fixed: contactNo -> phoneNo
         city: true,
         school: true,
         class: true,
@@ -180,4 +180,3 @@ router.patch('/profile', authenticateToken, async (req, res) => {
 });
 
 export default router;
-
