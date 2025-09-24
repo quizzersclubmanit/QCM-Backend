@@ -116,7 +116,16 @@ router.get('/profile', authenticateToken, async (req, res) => {
 // Update user profile
 router.patch('/profile', authenticateToken, async (req, res) => {
   try {
+    console.log('PATCH /api/user/profile called');
+    console.log('Request user:', req.user);
+    console.log('Request body:', req.body);
+    
     const { name, city, school, contactNo, class: userClass } = req.body;
+    
+    if (!req.user || !req.user.id) {
+      console.error('No user or user ID in request');
+      return res.status(401).json({ error: 'User not authenticated' });
+    }
     
     console.log('Profile PATCH request:', {
       userId: req.user.id,
@@ -128,7 +137,13 @@ router.patch('/profile', authenticateToken, async (req, res) => {
     if (city) updateData.city = city;
     if (school) updateData.school = school;
     if (contactNo) updateData.contactNo = contactNo;
-    if (userClass !== undefined) updateData.class = parseInt(userClass);
+    if (userClass !== undefined) {
+      const parsedClass = parseInt(userClass);
+      if (isNaN(parsedClass)) {
+        return res.status(400).json({ error: 'Class must be a valid number' });
+      }
+      updateData.class = parsedClass;
+    }
 
     console.log('Final update data:', updateData);
 
@@ -159,7 +174,8 @@ router.patch('/profile', authenticateToken, async (req, res) => {
     });
   } catch (error) {
     console.error('Update profile error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error('Error stack:', error.stack);
+    res.status(500).json({ error: 'Internal server error', details: error.message });
   }
 });
 
