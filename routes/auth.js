@@ -251,11 +251,19 @@ router.post('/signup', async (req, res) => {
       maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
     });
 
-    res.status(201).json({
-      message: 'User created successfully',
+    res.json({
+      message: 'Login successful',
       token, // expose JWT so frontend can store and send as Bearer
       user: {
-        ...user,
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        userId: user.userId,
+        phoneNo: user.phoneNo,
+        city: user.city,
+        school: user.school,
+        sex: user.sex,
+        docId: user.docId,
         $id: user.userId // For compatibility with existing frontend
       }
     });
