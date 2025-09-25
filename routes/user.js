@@ -179,4 +179,32 @@ router.patch('/profile', authenticateToken, async (req, res) => {
   }
 });
 
+router.get('/score', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.query.userId || req.user.id; // Allow passing userId as a query parameter
+
+    // Check if the user has a quiz score record
+    const userScores = await prisma.quizScore.findMany({
+      where: {
+        userId: userId,
+      },
+    });
+
+    // Calculate total score from all sections
+    const totalScore = userScores.reduce((sum, score) => sum + score.score, 0);
+
+    // If no scores are found, return a null score
+    if (userScores.length === 0) {
+      return res.json({ score: null });
+    }
+
+    res.json({
+      score: totalScore,
+    });
+  } catch (error) {
+    console.error('Get user score error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 export default router;
