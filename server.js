@@ -4,6 +4,7 @@ import cookieParser from 'cookie-parser';
 import session from 'express-session';
 import MongoDBStore from 'connect-mongodb-session';
 import dotenv from 'dotenv';
+import { cookieSecure } from './lib/cookie.js';
 import authRoutes from './routes/auth.js';
 import userRoutes from './routes/user.js';
 import quizRoutes from './routes/quiz.js';
@@ -102,10 +103,10 @@ app.use(
     store: store,
     cookie: {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+      secure: cookieSecure(),
+      sameSite: cookieSecure() ? 'none' : 'lax',
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-      domain: process.env.NODE_ENV === 'production' ? '.quizzersclub.in' : undefined,
+      domain: process.env.COOKIE_DOMAIN !== undefined ? (process.env.COOKIE_DOMAIN || undefined) : (process.env.NODE_ENV === 'production' ? '.quizzersclub.in' : undefined),
       path: '/'
     },
     name: 'qcm.sid',

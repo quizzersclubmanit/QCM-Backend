@@ -157,6 +157,7 @@ import { v4 as uuidv4 } from 'uuid';
 import prisma from '../lib/prisma.js';
 import { authenticateToken } from '../middleware/auth.js';
 import emailService from '../lib/emailService.js';
+import { cookieSecure } from '../lib/cookie.js';
 
 const router = express.Router();
 
@@ -246,7 +247,7 @@ router.post('/signup', async (req, res) => {
     // Set cookie
     res.cookie('token', token, {
       httpOnly: false,
-      secure: process.env.NODE_ENV === 'production',
+      secure: cookieSecure(),
       sameSite: 'lax',
       maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
     });
@@ -303,7 +304,7 @@ router.post('/login', async (req, res) => {
     // Set cookie
     res.cookie('token', token, {
       httpOnly: false,
-      secure: process.env.NODE_ENV === 'production',
+      secure: cookieSecure(),
       sameSite: 'lax',
       maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
     });
