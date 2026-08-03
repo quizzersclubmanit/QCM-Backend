@@ -18,7 +18,9 @@
   "description": "QCM Backend with Prisma and MongoDB",
   "dependencies": {
     "@prisma/client": "^6.15.0",
+    "bcrypt": "^6.0.0",
     "bcryptjs": "^3.0.2",
+     "@sendgrid/mail": "^8.1.6",
     "connect-mongodb-session": "^5.0.0",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
@@ -27,6 +29,8 @@
     "express-session": "^1.17.3",
     "jsonwebtoken": "^9.0.2",
     "nodemailer": "^7.0.6",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1",
     "resend": "^3.2.0",
     "uuid": "^9.0.1",
     "validator": "^13.15.15"
