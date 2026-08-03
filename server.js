@@ -44,7 +44,7 @@ store.on('error', function(error) {
 
 
 const allowedOrigins = [
-  'https://www.quizzersclub.in',  // production
+  'https://qcm-website.vercel.app',  // production (Vercel proxy)
   'http://localhost:5173',        // local dev
   'http://127.0.0.1:5173'         // local dev (alternate)
 ];
