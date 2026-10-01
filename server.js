@@ -1,16 +1,14 @@
-import express from 'express';
-import cors from 'cors';
-import cookieParser from 'cookie-parser';
-import session from 'express-session';
-import MongoDBStore from 'connect-mongodb-session';
-import dotenv from 'dotenv';
-import { cookieSecure } from './lib/cookie.js';
-import authRoutes from './routes/auth.js';
-import userRoutes from './routes/user.js';
-import quizRoutes from './routes/quiz.js';
-import mongoose from "mongoose"
-
-
+import express from "express";
+import cors from "cors";
+import cookieParser from "cookie-parser";
+import session from "express-session";
+import MongoDBStore from "connect-mongodb-session";
+import dotenv from "dotenv";
+import { cookieSecure } from "./lib/cookie.js";
+import authRoutes from "./routes/auth.js";
+import userRoutes from "./routes/user.js";
+import quizRoutes from "./routes/quiz.js";
+import mongoose from "mongoose";
 
 dotenv.config();
 
@@ -20,18 +18,18 @@ const PORT = process.env.PORT || 3000;
 // MongoDB session store setup
 const MongoDBStoreSession = MongoDBStore(session);
 const store = new MongoDBStoreSession({
-  uri: process.env.DATABASE_URL || 'mongodb://localhost:27017/qcm',
-  collection: 'sessions',
+  uri: process.env.MONGODB_URI || "mongodb://localhost:27017/qcm",
+  collection: "sessions",
   expires: 1000 * 60 * 60 * 24 * 30, // 30 days
   connectionOptions: {
     useNewUrlParser: true,
     useUnifiedTopology: true,
-  }
+  },
 });
 
 // Catch session store errors
-store.on('error', function(error) {
-  console.error('Session store error:', error);
+store.on("error", function (error) {
+  console.error("Session store error:", error);
 });
 
 // Frontend URL
@@ -45,11 +43,11 @@ store.on('error', function(error) {
 //   })
 // );
 
-
 const allowedOrigins = [
-  'https://qcm-website.vercel.app',  // production (Vercel proxy)
-  'http://localhost:5173',        // local dev
-  'http://127.0.0.1:5173'         // local dev (alternate)
+  "https://qcm-website.vercel.app", // production (Vercel proxy)
+  "http://localhost:5173", // local dev
+  "http://127.0.0.1:5173", // local dev (alternate)
+  "https://www.quizzersclub.com", // production (direct)
 ];
 
 // CORS configuration
@@ -57,7 +55,7 @@ const allowedOrigins = [
 //   origin: function (origin, callback) {
 //     // Allow requests with no origin (like mobile apps or curl requests)
 //     if (!origin) return callback(null, true);
-    
+
 //     if (allowedOrigins.indexOf(origin) === -1) {
 //       const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
 //       return callback(new Error(msg), false);
@@ -72,7 +70,7 @@ const allowedOrigins = [
 //   optionsSuccessStatus: 200
 // };
 const corsOptions = {
-  origin: allowedOrigins, 
+  origin: allowedOrigins,
   credentials: true,
   allowedHeaders: [
     "Content-Type",
@@ -80,88 +78,98 @@ const corsOptions = {
     "X-Requested-With",
     "Accept",
     "Origin",
-    "Cache-Control"
+    "Cache-Control",
   ],
   methods: ["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"],
-  optionsSuccessStatus: 200
+  optionsSuccessStatus: 200,
 };
 
 app.use(cors(corsOptions));
 
 // Explicitly handle preflight
-app.options('*', cors(corsOptions));
-
+app.options("*", cors(corsOptions));
 
 // Parse JSON and cookies
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(cookieParser(process.env.COOKIE_SECRET || 'your-secret-key-here'));
+app.use(cookieParser(process.env.COOKIE_SECRET || "your-secret-key-here"));
 
 // Session setup
 app.use(
   session({
-    secret: process.env.SESSION_SECRET || process.env.JWT_SECRET || 'your-secret-key-here',
+    secret:
+      process.env.SESSION_SECRET ||
+      process.env.JWT_SECRET ||
+      "your-secret-key-here",
     resave: false,
     saveUninitialized: false,
     store: store,
     cookie: {
       httpOnly: true,
       secure: cookieSecure(),
-      sameSite: cookieSecure() ? 'none' : 'lax',
+      sameSite: cookieSecure() ? "none" : "lax",
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-      domain: process.env.COOKIE_DOMAIN !== undefined ? (process.env.COOKIE_DOMAIN || undefined) : (process.env.NODE_ENV === 'production' ? '.quizzersclub.in' : undefined),
-      path: '/'
+      domain:
+        process.env.COOKIE_DOMAIN !== undefined
+          ? process.env.COOKIE_DOMAIN || undefined
+          : process.env.NODE_ENV === "production"
+            ? ".quizzersclub.in"
+            : undefined,
+      path: "/",
     },
-    name: 'qcm.sid',
-    rolling: true // Reset the maxAge on every request
-  })
+    name: "qcm.sid",
+    rolling: true, // Reset the maxAge on every request
+  }),
 );
 
 // Routes
-app.use('/api/auth', authRoutes);
-app.use('/api/user', userRoutes);
-app.use('/api/quiz', quizRoutes);
+app.use("/api/auth", authRoutes);
+app.use("/api/user", userRoutes);
+app.use("/api/quiz", quizRoutes);
 
 // Health check
-app.get('/api/health', (req, res) => {
-  res.json({ message: 'QCM Backend is running!', timestamp: new Date().toISOString() });
+app.get("/api/health", (req, res) => {
+  res.json({
+    message: "QCM Backend is running!",
+    timestamp: new Date().toISOString(),
+  });
 });
 
 // Test endpoint
-app.get('/api/test', (req, res) => {
-  res.json({ success: true, message: 'Backend connection working' });
+app.get("/api/test", (req, res) => {
+  res.json({ success: true, message: "Backend connection working" });
 });
 
 // Debug auth endpoint
-app.get('/api/debug/auth', (req, res) => {
+app.get("/api/debug/auth", (req, res) => {
   res.json({
     headers: req.headers,
     cookies: req.cookies,
     signedCookies: req.signedCookies,
     authorization: req.headers.authorization,
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
   });
 });
 
 // Root endpoint
-app.get('/', (req, res) => {
-  res.json({ 
-    message: 'QCM Backend API Server', 
-    version: '1.0.0',
+app.get("/", (req, res) => {
+  res.json({
+    message: "QCM Backend API Server",
+    version: "1.0.0",
     endpoints: {
-      health: '/api/health',
-      test: '/api/test',
-      auth: '/api/auth',
-      user: '/api/user',
-      quiz: '/api/quiz'
-    }
+      health: "/api/health",
+      test: "/api/test",
+      auth: "/api/auth",
+      user: "/api/user",
+      quiz: "/api/quiz",
+    },
   });
 });
 
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error(err.stack);
-  res.status(500).json({ error: 'Something went wrong!' });
+  res.status(500).json({ error: "Something went wrong!" });
 });
 
 // Start server
@@ -172,4 +180,4 @@ app.listen(PORT, () => {
 mongoose
   .connect(process.env.MONGODB_URI)
   .then(() => console.log("Mongoose connected"))
-  .catch((err) => console.error("Mongoose connection failed:", err.message))
+  .catch((err) => console.error("Mongoose connection failed:", err.message));
