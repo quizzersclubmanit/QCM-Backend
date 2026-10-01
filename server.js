@@ -8,6 +8,9 @@ import { cookieSecure } from './lib/cookie.js';
 import authRoutes from './routes/auth.js';
 import userRoutes from './routes/user.js';
 import quizRoutes from './routes/quiz.js';
+import mongoose from "mongoose"
+
+
 
 dotenv.config();
 
@@ -165,3 +168,8 @@ app.use((err, req, res, next) => {
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
 });
+
+mongoose
+  .connect(process.env.MONGODB_URI)
+  .then(() => console.log("Mongoose connected"))
+  .catch((err) => console.error("Mongoose connection failed:", err.message))

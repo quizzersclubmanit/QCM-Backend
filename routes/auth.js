@@ -158,6 +158,8 @@ import prisma from '../lib/prisma.js';
 import { authenticateToken } from '../middleware/auth.js';
 import emailService from '../lib/emailService.js';
 import { cookieSecure } from '../lib/cookie.js';
+import QbitRegistration from '../models/QbitRegistration.js';
+import { validateTeam } from '../utils/validateTeam.js';
 
 const router = express.Router();
 
@@ -167,6 +169,8 @@ const generateToken = (userId) => {
 };
 
 // Signup route
+
+/*
 router.post('/signup', async (req, res) => {
   try {
     const { email, password, name, phoneNo, city, school, sex } = req.body;
@@ -241,6 +245,8 @@ router.post('/signup', async (req, res) => {
       }
     });
 
+    
+
     // Generate token
     const token = generateToken(user.id);
 
@@ -273,6 +279,32 @@ router.post('/signup', async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+
+*/
+
+// signUp route for Qbit'26
+
+router.post('/signup', async (req, res) => {
+  const { data, errors } = validateTeam(req.body || {});
+  if (Object.keys(errors).length) {
+    return res.status(400).json({ message: 'Please fix the highlighted fields.', errors });
+  }
+  try {
+    const team = await QbitRegistration.create({ ...data, teamKey: data.teamName.toLowerCase() });
+    res.status(201).json({ message: 'Team registered.', id: team._id });
+  } catch (error) {
+    if (error.code === 11000) {
+      // MongoDB's "duplicate value" error: this team name already exists
+      return res.status(409).json({
+        message: 'That team name is already registered.',
+        errors: { teamName: 'This team name is taken. Try another one.' },
+      });
+    }
+    console.error('Team registration error:', error);
+    res.status(500).json({ message: 'Something went wrong on our side. Please try again.' });
+  }
+});
+ 
 
 // Login route
 router.post('/login', async (req, res) => {
