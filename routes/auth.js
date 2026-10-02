@@ -290,8 +290,71 @@ router.post('/signup', async (req, res) => {
     return res.status(400).json({ message: 'Please fix the highlighted fields.', errors });
   }
   try {
-    const team = await QbitRegistration.create({ ...data, teamKey: data.teamName.toLowerCase() });
-    res.status(201).json({ message: 'Team registered.', id: team._id });
+    // Cross-team duplicate check: Ensure no member email or phone is already registered on another team
+    const memberEmails = data.members.map((m) => m.email.toLowerCase().trim());
+    const memberPhones = data.members.map((m) => m.phone.trim());
+
+    const existingTeamWithMember = await QbitRegistration.findOne({
+      $or: [
+        { 'members.email': { $in: memberEmails } },
+        { 'members.phone': { $in: memberPhones } },
+      ],
+    })
+      .select('teamName members')
+      .lean();
+
+    if (existingTeamWithMember) {
+      const conflict = data.members.find((m) =>
+        existingTeamWithMember.members.some(
+          (em) => em.email === m.email || em.phone === m.phone
+        )
+      );
+      return res.status(409).json({
+        message: `Participant "${conflict?.name || 'A team member'}" (${conflict?.email || conflict?.phone}) is already registered with team "${existingTeamWithMember.teamName}". Each contestant may only join one team.`,
+        errors: {
+          members: `Already registered with team "${existingTeamWithMember.teamName}".`,
+        },
+      });
+    }
+
+    // Generate unique sequential registration code: QBIT-26-0001
+    const totalCount = await QbitRegistration.countDocuments();
+    const codeNum = String(totalCount + 1).padStart(4, '0');
+    let registrationCode = `QBIT-26-${codeNum}`;
+
+    // Ensure collision safety in rare race conditions
+    let codeExists = await QbitRegistration.findOne({ registrationCode }).lean();
+    if (codeExists) {
+      registrationCode = `QBIT-26-${String(Date.now()).slice(-4)}`;
+    }
+
+    const team = await QbitRegistration.create({
+      ...data,
+      teamKey: data.teamName.toLowerCase().trim(),
+      registrationCode,
+      status: 'CONFIRMED',
+      source: req.body.source || 'website',
+    });
+
+    // Best-effort mirror to Google Sheet — never fail the signup if Sheets is down/unconfigured
+    import('../lib/googleSheets.js')
+      .then((m) => m.appendTeamToSheet(team.toObject()))
+      .catch((err) => console.error('Sheets append failed:', err.message));
+
+    res.status(201).json({
+      message: 'Team registered successfully.',
+      id: team._id,
+      registrationCode: team.registrationCode,
+      team: {
+        id: team._id,
+        teamName: team.teamName,
+        college: team.college,
+        registrationCode: team.registrationCode,
+        status: team.status,
+        members: team.members,
+        createdAt: team.createdAt,
+      },
+    });
   } catch (error) {
     if (error.code === 11000) {
       // MongoDB's "duplicate value" error: this team name already exists
@@ -317,7 +380,7 @@ router.post('/login', async (req, res) => {
 
     // Find user
     const user = await prisma.user.findUnique({
-      where: { email }
+      where: { email: email.toLowerCase().trim() }
     });
 
     if (!user) {
@@ -333,9 +396,9 @@ router.post('/login', async (req, res) => {
     // Generate token
     const token = generateToken(user.id);
 
-    // Set cookie
+    // Set cookie with httpOnly
     res.cookie('token', token, {
-      httpOnly: false,
+      httpOnly: true,
       secure: cookieSecure(),
       sameSite: 'lax',
       maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
@@ -349,6 +412,7 @@ router.post('/login', async (req, res) => {
         email: user.email,
         name: user.name,
         userId: user.userId,
+        role: user.role || 'USER',
         phoneNo: user.phoneNo,
         city: user.city,
         school: user.school,

@@ -8,6 +8,9 @@ import { cookieSecure } from "./lib/cookie.js";
 import authRoutes from "./routes/auth.js";
 import userRoutes from "./routes/user.js";
 import quizRoutes from "./routes/quiz.js";
+import qbitRoutes from "./routes/qbit.js";
+import drivesRoutes from "./routes/drives.js";
+import linksRoutes from "./routes/links.js";
 import mongoose from "mongoose";
 
 dotenv.config();
@@ -126,6 +129,9 @@ app.use(
 app.use("/api/auth", authRoutes);
 app.use("/api/user", userRoutes);
 app.use("/api/quiz", quizRoutes);
+app.use("/api/qbit", qbitRoutes);
+app.use("/api/drives", drivesRoutes);
+app.use("/api/links", linksRoutes);
 
 // Health check
 app.get("/api/health", (req, res) => {
@@ -140,17 +146,6 @@ app.get("/api/test", (req, res) => {
   res.json({ success: true, message: "Backend connection working" });
 });
 
-// Debug auth endpoint
-app.get("/api/debug/auth", (req, res) => {
-  res.json({
-    headers: req.headers,
-    cookies: req.cookies,
-    signedCookies: req.signedCookies,
-    authorization: req.headers.authorization,
-    timestamp: new Date().toISOString(),
-  });
-});
-
 // Root endpoint
 app.get("/", (req, res) => {
   res.json({
@@ -162,6 +157,7 @@ app.get("/", (req, res) => {
       auth: "/api/auth",
       user: "/api/user",
       quiz: "/api/quiz",
+      qbit: "/api/qbit",
     },
   });
 });
