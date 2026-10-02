@@ -45,6 +45,7 @@ const authenticateToken = async (req, res, next) => {
         email: true,
         name: true,
         userId: true,
+        role: true,
         phoneNo: true,
         city: true,
         school: true,
@@ -77,43 +78,56 @@ const authenticateToken = async (req, res, next) => {
   }
 };
 
-// Admin authorization middleware
-const requireAdmin = async (req, res, next) => {
-  try {
-    // First authenticate the token
-    await new Promise((resolve, reject) => {
-      authenticateToken(req, res, (err) => {
-        if (err) reject(err);
-        else resolve();
-      });
-    });
+const ADMIN_EMAILS = [
+  'admin@quizzersclub.in',
+  'quizzersclub@gmail.com',
+  'admin@qcm.in',
+  'admin@qcm.com',
+  'admin@admin.com',
+];
 
-    // Check if user has admin privileges
-    // For now, we'll check if the user email contains 'admin' or is a specific admin email
-    // You can modify this logic based on your admin identification system
-    const adminEmails = [
-      'admin@quizzersclub.in',
-      'quizzersclub@gmail.com',
-      'admin@qcm.in',
-      // Add more admin emails as needed
-    ];
-    
-    const isAdmin = adminEmails.includes(req.user.email) || 
-                   req.user.email.includes('admin') ||
-                   req.user.email.includes('quizzersclub');
+const isUserAdmin = (user) => {
+  if (!user) return false;
+  const email = String(user.email || '').toLowerCase().trim();
+  const role = String(user.role || '').toUpperCase().trim();
+  return (
+    ADMIN_EMAILS.includes(email) ||
+    user.name === 'admin' ||
+    ['ADMIN', 'SUPER_ADMIN'].includes(role)
+  );
+};
 
-    if (!isAdmin) {
+const isUserStaff = (user) => {
+  if (!user) return false;
+  if (isUserAdmin(user)) return true;
+  const role = String(user.role || '').toUpperCase().trim();
+  return ['ORGANIZER', 'COORDINATOR', 'MEMBER'].includes(role);
+};
+
+// Admin authorization middleware (strictly admins & super admins)
+const requireAdmin = (req, res, next) => {
+  authenticateToken(req, res, () => {
+    if (!isUserAdmin(req.user)) {
       return res.status(403).json({
         error: 'Access denied',
         message: 'Admin privileges required for this operation'
       });
     }
-
     next();
-  } catch (error) {
-    console.error('Admin middleware error:', error);
-    return res.status(401).json({ error: 'Authentication failed' });
-  }
+  });
 };
 
-export { authenticateToken, requireAdmin };
+// Staff authorization middleware (admins, organizers, and event coordinators)
+const requireStaff = (req, res, next) => {
+  authenticateToken(req, res, () => {
+    if (!isUserStaff(req.user)) {
+      return res.status(403).json({
+        error: 'Access denied',
+        message: 'Club staff privileges required for this operation'
+      });
+    }
+    next();
+  });
+};
+
+export { authenticateToken, requireAdmin, requireStaff, isUserAdmin, isUserStaff };
