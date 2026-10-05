@@ -282,61 +282,82 @@ router.post('/signup', async (req, res) => {
 
 */
 
-// signUp route for Qbit'26
+
+import Counter from '../models/Counter.js';
+
+const normalizePhone = (p) => String(p || '').replace(/\D/g, '').slice(-10);
+const normalizeEmail = (e) => String(e || '').toLowerCase().trim();
+
+// Atomic, race-free sequential code: QBIT-26-0001, 0002, ...
+async function nextRegistrationCode() {
+  const counter = await Counter.findOneAndUpdate(
+    { _id: 'qbit-registration' },
+    { $inc: { seq: 1 } },
+    { new: true, upsert: true }
+  );
+  return `QBIT-26-${String(counter.seq).padStart(4, '0')}`;
+}
 
 router.post('/signup', async (req, res) => {
   const { data, errors } = validateTeam(req.body || {});
   if (Object.keys(errors).length) {
     return res.status(400).json({ message: 'Please fix the highlighted fields.', errors });
   }
+
   try {
-    // Cross-team duplicate check: Ensure no member email or phone is already registered on another team
-    const memberEmails = data.members.map((m) => m.email.toLowerCase().trim());
-    const memberPhones = data.members.map((m) => m.phone.trim());
+    const email = normalizeEmail(data.email);
+    const members = data.members.map((m) => ({
+      ...m,
+      name: String(m.name || '').trim(),
+      phone: normalizePhone(m.phone),
+      course: String(m.course || '').trim(),
+    }));
+    const phones = members.map((m) => m.phone);
 
-    const existingTeamWithMember = await QbitRegistration.findOne({
-      $or: [
-        { 'members.email': { $in: memberEmails } },
-        { 'members.phone': { $in: memberPhones } },
-      ],
-    })
-      .select('teamName members')
-      .lean();
-
-    if (existingTeamWithMember) {
-      const conflict = data.members.find((m) =>
-        existingTeamWithMember.members.some(
-          (em) => em.email === m.email || em.phone === m.phone
-        )
-      );
-      return res.status(409).json({
-        message: `Participant "${conflict?.name || 'A team member'}" (${conflict?.email || conflict?.phone}) is already registered with team "${existingTeamWithMember.teamName}". Each contestant may only join one team.`,
-        errors: {
-          members: `Already registered with team "${existingTeamWithMember.teamName}".`,
-        },
+    // Same phone twice inside this team
+    if (new Set(phones).size !== phones.length) {
+      return res.status(400).json({
+        message: 'Each member must have a different phone number.',
+        errors: { members: 'Duplicate phone numbers within the team.' },
       });
     }
 
-    // Generate unique sequential registration code: QBIT-26-0001
-    const totalCount = await QbitRegistration.countDocuments();
-    const codeNum = String(totalCount + 1).padStart(4, '0');
-    let registrationCode = `QBIT-26-${codeNum}`;
+    // Cross-team duplicate check: team email OR any member phone already used
+    const existing = await QbitRegistration.findOne({
+      $or: [{ email }, { 'members.phone': { $in: phones } }],
+    })
+      .select('teamName email members')
+      .lean();
 
-    // Ensure collision safety in rare race conditions
-    let codeExists = await QbitRegistration.findOne({ registrationCode }).lean();
-    if (codeExists) {
-      registrationCode = `QBIT-26-${String(Date.now()).slice(-4)}`;
+    if (existing) {
+      if (existing.email === email) {
+        return res.status(409).json({
+          message: `This email is already registered with team "${existing.teamName}".`,
+          errors: { email: `Already used by team "${existing.teamName}".` },
+        });
+      }
+      const clash = members.find((m) =>
+        existing.members.some((em) => em.phone === m.phone)
+      );
+      return res.status(409).json({
+        message: `Participant "${clash?.name || 'A team member'}" (${clash?.phone}) is already registered with team "${existing.teamName}". Each contestant may only join one team.`,
+        errors: { members: `Already registered with team "${existing.teamName}".` },
+      });
     }
+
+    const registrationCode = await nextRegistrationCode();
 
     const team = await QbitRegistration.create({
       ...data,
+      email,
+      members,
       teamKey: data.teamName.toLowerCase().trim(),
       registrationCode,
       status: 'CONFIRMED',
-      source: req.body.source || 'website',
+      source: ['website', 'desk'].includes(req.body.source) ? req.body.source : 'website',
     });
 
-    // Best-effort mirror to Google Sheet — never fail the signup if Sheets is down/unconfigured
+    // Best-effort mirror to Google Sheet — never fail the signup if Sheets is down
     import('../lib/googleSheets.js')
       .then((m) => m.appendTeamToSheet(team.toObject()))
       .catch((err) => console.error('Sheets append failed:', err.message));
@@ -349,6 +370,7 @@ router.post('/signup', async (req, res) => {
         id: team._id,
         teamName: team.teamName,
         college: team.college,
+        email: team.email,
         registrationCode: team.registrationCode,
         status: team.status,
         members: team.members,
@@ -357,17 +379,46 @@ router.post('/signup', async (req, res) => {
     });
   } catch (error) {
     if (error.code === 11000) {
-      // MongoDB's "duplicate value" error: this team name already exists
-      return res.status(409).json({
-        message: 'That team name is already registered.',
-        errors: { teamName: 'This team name is taken. Try another one.' },
-      });
+      const key = Object.keys(error.keyPattern || {})[0];
+      if (key === 'teamKey') {
+        return res.status(409).json({
+          message: 'That team name is already registered.',
+          errors: { teamName: 'This team name is taken. Try another one.' },
+        });
+      }
+      if (key === 'email') {
+        return res.status(409).json({
+          message: 'This email is already registered with another team.',
+          errors: { email: 'This email is already registered.' },
+        });
+      }
+      if (key === 'members.phone') {
+        return res.status(409).json({
+          message: "A member's phone number is already registered with another team.",
+          errors: { members: 'A phone number is already registered with another team.' },
+        });
+      }
+      return res.status(409).json({ message: 'Duplicate registration detected. Please try again.' });
     }
     console.error('Team registration error:', error);
     res.status(500).json({ message: 'Something went wrong on our side. Please try again.' });
   }
 });
- 
+
+// ─────────────────────────────────────────────────────────────
+// 4) ONE-TIME seed (run once, before deploying) so new codes
+//    continue after your existing teams:
+//
+//   const last = await QbitRegistration.findOne().sort({ registrationCode: -1 }).lean();
+//   const n = last ? parseInt(last.registrationCode.split('-').pop(), 10) : 0;
+//   await Counter.updateOne({ _id: 'qbit-registration' }, { $set: { seq: n } }, { upsert: true });
+//
+//   And for existing teams, copy one member email up to the team:
+//   await QbitRegistration.updateMany(
+//     { email: { $exists: false } },
+//     [{ $set: { email: { $arrayElemAt: ['$members.email', 0] } } }]
+//   );
+// ─────────────────────────────────────────────────────────────
 
 // Login route
 router.post('/login', async (req, res) => {
