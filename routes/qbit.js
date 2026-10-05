@@ -131,6 +131,12 @@ function scoreTeamFuzzy(team, queryStr) {
   const collegeScore = scoreFieldFuzzy(team.college, searchTokens, rawQuery);
   if (collegeScore > 0) bestScore = Math.max(bestScore, Math.round(collegeScore * 1.1));
 
+  // Check team email (weight: 1.1)
+  if (team.email) {
+    const emailScore = scoreFieldFuzzy(team.email, searchTokens, rawQuery);
+    if (emailScore > 0) bestScore = Math.max(bestScore, Math.round(emailScore * 1.1));
+  }
+
   // Check members
   if (Array.isArray(team.members)) {
     for (const m of team.members) {
@@ -433,16 +439,35 @@ router.get("/admin/teams/stats", requireStaff, async (req, res) => {
 // GET /api/qbit/admin/teams/duplicates — detect cross-team duplicate participants
 router.get("/admin/teams/duplicates", requireStaff, async (req, res) => {
   try {
-    const teams = await QbitRegistration.find().select("teamName registrationCode college members createdAt").lean();
+    const teams = await QbitRegistration.find().select("teamName registrationCode college email members createdAt").lean();
     const emailMap = new Map();
     const phoneMap = new Map();
     const duplicateTeamIds = new Set();
     const conflicts = [];
 
     for (const team of teams) {
+      // Check team email
+      if (team.email) {
+        const teamEm = team.email.toLowerCase().trim();
+        if (emailMap.has(teamEm)) {
+          const prior = emailMap.get(teamEm);
+          duplicateTeamIds.add(team._id.toString());
+          duplicateTeamIds.add(prior.teamId);
+          conflicts.push({
+            type: "email",
+            value: teamEm,
+            memberName: "Team Email",
+            teamA: { id: prior.teamId, name: prior.teamName, code: prior.code },
+            teamB: { id: team._id.toString(), name: team.teamName, code: team.registrationCode }
+          });
+        } else {
+          emailMap.set(teamEm, { teamId: team._id.toString(), teamName: team.teamName, code: team.registrationCode });
+        }
+      }
+
       if (!Array.isArray(team.members)) continue;
       for (const m of team.members) {
-        if (m.email) {
+        if (m.email && m.email !== team.email) {
           const em = m.email.toLowerCase().trim();
           if (emailMap.has(em)) {
             const prior = emailMap.get(em);
@@ -506,7 +531,7 @@ router.get("/admin/teams/:id", requireStaff, async (req, res) => {
 // PATCH /api/qbit/admin/teams/:id — update team information (fix typos, update members)
 router.patch("/admin/teams/:id", requireStaff, async (req, res) => {
   try {
-    const { teamName, college, notes, members, status } = req.body;
+    const { teamName, college, email, notes, members, status } = req.body;
     const team = await QbitRegistration.findById(req.params.id);
     if (!team) return res.status(404).json({ error: "Team not found" });
 
@@ -515,6 +540,7 @@ router.patch("/admin/teams/:id", requireStaff, async (req, res) => {
       team.teamKey = teamName.toLowerCase().trim();
     }
     if (college && college.trim()) team.college = college.trim();
+    if (email && email.trim()) team.email = email.toLowerCase().trim();
     if (notes !== undefined) team.notes = String(notes || "").trim();
     if (status && ['CONFIRMED', 'CHECKED_IN', 'DISQUALIFIED'].includes(status.toUpperCase())) {
       team.status = status.toUpperCase();
@@ -529,7 +555,7 @@ router.patch("/admin/teams/:id", requireStaff, async (req, res) => {
       team.members = members.map(m => ({
         name: String(m.name || "").trim(),
         phone: String(m.phone || "").replace(/\D/g, "").slice(-10),
-        email: String(m.email || "").toLowerCase().trim(),
+        email: String(m.email || team.email || "").toLowerCase().trim(),
         course: String(m.course || "").trim()
       }));
     }
