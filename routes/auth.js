@@ -290,29 +290,37 @@ router.post('/signup', async (req, res) => {
     return res.status(400).json({ message: 'Please fix the highlighted fields.', errors });
   }
   try {
-    // Cross-team duplicate check: Ensure no member email or phone is already registered on another team
-    const memberEmails = data.members.map((m) => m.email.toLowerCase().trim());
+    // Cross-team duplicate check: Ensure team email or any member phone is not already registered on another team
+    const teamEmail = data.email.toLowerCase().trim();
     const memberPhones = data.members.map((m) => m.phone.trim());
 
-    const existingTeamWithMember = await QbitRegistration.findOne({
+    const existingTeam = await QbitRegistration.findOne({
       $or: [
-        { 'members.email': { $in: memberEmails } },
+        { email: teamEmail },
+        { 'members.email': teamEmail },
         { 'members.phone': { $in: memberPhones } },
       ],
     })
-      .select('teamName members')
+      .select('teamName email members')
       .lean();
 
-    if (existingTeamWithMember) {
+    if (existingTeam) {
+      if (existingTeam.email === teamEmail || existingTeam.members?.some((em) => em.email === teamEmail)) {
+        return res.status(409).json({
+          message: `The email "${teamEmail}" is already registered with team "${existingTeam.teamName}". Each team must have a unique email.`,
+          errors: {
+            email: `Already registered with team "${existingTeam.teamName}".`,
+          },
+        });
+      }
+
       const conflict = data.members.find((m) =>
-        existingTeamWithMember.members.some(
-          (em) => em.email === m.email || em.phone === m.phone
-        )
+        existingTeam.members?.some((em) => em.phone === m.phone)
       );
       return res.status(409).json({
-        message: `Participant "${conflict?.name || 'A team member'}" (${conflict?.email || conflict?.phone}) is already registered with team "${existingTeamWithMember.teamName}". Each contestant may only join one team.`,
+        message: `Participant "${conflict?.name || 'A team member'}" (${conflict?.phone}) is already registered with team "${existingTeam.teamName}". Each contestant may only join one team.`,
         errors: {
-          members: `Already registered with team "${existingTeamWithMember.teamName}".`,
+          members: `Phone already registered with team "${existingTeam.teamName}".`,
         },
       });
     }
@@ -349,6 +357,7 @@ router.post('/signup', async (req, res) => {
         id: team._id,
         teamName: team.teamName,
         college: team.college,
+        email: team.email,
         registrationCode: team.registrationCode,
         status: team.status,
         members: team.members,
