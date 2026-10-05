@@ -21,7 +21,7 @@ const PORT = process.env.PORT || 3000;
 // MongoDB session store setup
 const MongoDBStoreSession = MongoDBStore(session);
 const store = new MongoDBStoreSession({
-  uri: process.env.MONGODB_URI || "mongodb://localhost:27017/qcm",
+  uri: process.env.MONGODB_URI,
   collection: "sessions",
   expires: 1000 * 60 * 60 * 24 * 30, // 30 days
   connectionOptions: {
