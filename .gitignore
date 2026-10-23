@@ -7,3 +7,9 @@ google-service-account.json
 *service-account*.json
 quizzers-club-*.json
 *credentials*.json
+
+# WhatsApp Gateway session & cache storage
+.wwebjs_auth
+.wwebjs_cache
+**/whatsapp-gateway/.wwebjs_auth
+**/whatsapp-gateway/.wwebjs_cache

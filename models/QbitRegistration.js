@@ -19,6 +19,7 @@ const registrationSchema = new mongoose.Schema(
     college:          { type: String, required: true, maxlength: 150 },
     email:            { type: String, required: true, lowercase: true, maxlength: 120, index: true }, // One email for the entire team
     registrationCode: { type: String, unique: true, sparse: true, index: true }, // e.g. QBIT-26-0001
+    passToken:        { type: String, unique: true, sparse: true, index: true }, // Cryptographic access token for secure pass link
     status:           { type: String, enum: ['CONFIRMED', 'CHECKED_IN', 'DISQUALIFIED'], default: 'CONFIRMED' },
     checkedIn:        { type: Boolean, default: false },
     checkedInAt:      { type: Date },
