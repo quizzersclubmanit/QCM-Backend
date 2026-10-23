@@ -116,6 +116,11 @@ client.initialize().catch((err) => {
 
 // REST ENDPOINTS
 
+// 0. Root Redirect to Dashboard / QR
+app.get('/', (req, res) => {
+  res.redirect('/qr');
+});
+
 // 1. Status
 app.get('/status', (req, res) => {
   res.json({
