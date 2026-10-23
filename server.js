@@ -1,9 +1,9 @@
+import "dotenv/config";
 import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import session from "express-session";
 import MongoDBStore from "connect-mongodb-session";
-import dotenv from "dotenv";
 import { cookieSecure } from "./lib/cookie.js";
 import authRoutes from "./routes/auth.js";
 import userRoutes from "./routes/user.js";
@@ -12,8 +12,6 @@ import qbitRoutes from "./routes/qbit.js";
 import drivesRoutes from "./routes/drives.js";
 import linksRoutes from "./routes/links.js";
 import mongoose from "mongoose";
-
-dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
