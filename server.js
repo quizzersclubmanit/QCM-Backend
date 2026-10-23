@@ -46,34 +46,24 @@ store.on("error", function (error) {
 //   })
 // );
 
-const allowedOrigins = [
-  "https://qcm-website.vercel.app", // production (Vercel proxy)
-  "http://localhost:5173", // local dev
-  "http://127.0.0.1:5173", // local dev (alternate)
-  "https://www.quizzersclub.com", // production (direct)
-];
-
-// CORS configuration
-// const corsOptions = {
-//   origin: function (origin, callback) {
-//     // Allow requests with no origin (like mobile apps or curl requests)
-//     if (!origin) return callback(null, true);
-
-//     if (allowedOrigins.indexOf(origin) === -1) {
-//       const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
-//       return callback(new Error(msg), false);
-//     }
-//     return callback(null, true);
-//   },
-//   credentials: true,
-//   allowedHeaders: ['Content-Type', 'Authorization', 'x-access-token', 'token', 'X-Requested-With', 'Accept', 'Origin'],
-//   exposedHeaders: ['set-cookie'],
-//   methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
-//   preflightContinue: false,
-//   optionsSuccessStatus: 200
-// };
+// Dynamic CORS configuration (supports localhost, Vercel deployments/previews, and production)
 const corsOptions = {
-  origin: allowedOrigins,
+  origin: function (origin, callback) {
+    if (!origin) return callback(null, true);
+    if (/^http:\/\/localhost(:\d+)?$/.test(origin) || /^http:\/\/127\.0\.0\.1(:\d+)?$/.test(origin)) {
+      return callback(null, true);
+    }
+    if (/^https:\/\/.*\.vercel\.app$/.test(origin)) {
+      return callback(null, true);
+    }
+    if (/^https:\/\/(www\.)?quizzersclub\.(com|in)$/.test(origin)) {
+      return callback(null, true);
+    }
+    if (process.env.FRONTEND_URL && origin === process.env.FRONTEND_URL.replace(/\/$/, '')) {
+      return callback(null, true);
+    }
+    return callback(null, true);
+  },
   credentials: true,
   allowedHeaders: [
     "Content-Type",

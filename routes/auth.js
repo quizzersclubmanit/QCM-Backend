@@ -160,6 +160,7 @@ import emailService from '../lib/emailService.js';
 import { cookieSecure } from '../lib/cookie.js';
 import QbitRegistration from '../models/QbitRegistration.js';
 import { validateTeam } from '../utils/validateTeam.js';
+import { generatePassToken, verifyPassToken, maskEmail, maskPhone } from '../lib/passSecurity.js';
 
 const router = express.Router();
 
@@ -336,10 +337,13 @@ router.post('/signup', async (req, res) => {
       registrationCode = `QBIT-26-${String(Date.now()).slice(-4)}`;
     }
 
+    const passToken = generatePassToken(registrationCode);
+
     const team = await QbitRegistration.create({
       ...data,
       teamKey: data.teamName.toLowerCase().trim(),
       registrationCode,
+      passToken,
       status: 'CONFIRMED',
       source: req.body.source || 'website',
     });
@@ -349,10 +353,17 @@ router.post('/signup', async (req, res) => {
       .then((m) => m.appendTeamToSheet(team.toObject()))
       .catch((err) => console.error('Sheets append failed:', err.message));
 
+    // Automated multi-channel notification: Email + WhatsApp Digital Pass + SMS
+    import('../lib/notificationService.js')
+      .then((m) => m.sendRegistrationNotifications(team.toObject()))
+      .catch((err) => console.error('Registration notifications dispatch failed:', err.message));
+
     res.status(201).json({
       message: 'Team registered successfully.',
       id: team._id,
       registrationCode: team.registrationCode,
+      passToken,
+      passUrl: `/pass?code=${encodeURIComponent(team.registrationCode)}&token=${passToken}`,
       team: {
         id: team._id,
         teamName: team.teamName,
@@ -377,6 +388,131 @@ router.post('/signup', async (req, res) => {
   }
 });
  
+
+// Public Digital Pass Lookup by registration code with HMAC token verification (Strict Zero-Access without token)
+router.get('/pass/:code', async (req, res) => {
+  try {
+    const rawCode = (req.params.code || '').trim();
+    if (!rawCode) {
+      return res.status(400).json({ success: false, message: 'Registration pass code is required.' });
+    }
+
+    const cleanCode = rawCode.replace(/[^a-zA-Z0-9-]/g, '');
+    const token = (req.query.token || '').trim();
+
+    const team = await QbitRegistration.findOne({
+      registrationCode: new RegExp('^' + cleanCode + '$', 'i'),
+    })
+      .select('teamName college email registrationCode passToken status members createdAt')
+      .lean();
+
+    if (!team) {
+      return res.status(404).json({
+        success: false,
+        message: 'No registration found for pass code "' + cleanCode + '". Please check your code or register your team.',
+      });
+    }
+
+    // Strict Security: A valid pass token is mandatory. Match against DB stored token or HMAC.
+    const isAuthorized = (team.passToken && token === team.passToken) || verifyPassToken(team.registrationCode, token);
+    if (!isAuthorized) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access Denied: This digital pass is protected. Please open the official link sent to your registered WhatsApp or Email to view your pass.',
+      });
+    }
+
+    res.json({
+      success: true,
+      pass: {
+        registrationCode: team.registrationCode,
+        passToken: team.passToken,
+        teamName: team.teamName,
+        college: team.college,
+        email: team.email,
+        status: team.status || 'CONFIRMED',
+        checkedIn: Boolean(team.checkedIn),
+        members: team.members || [],
+        createdAt: team.createdAt,
+        event: {
+          name: "Q-BIT '26",
+          tagline: 'INTER-COLLEGE QUIZZING CHALLENGE',
+          date: '31 OCT 2026',
+          venue: 'NIT Bhopal (MANIT Campus)',
+          prizePool: '₹35,000',
+        },
+      },
+    });
+  } catch (error) {
+    console.error('Digital pass lookup error:', error);
+    res.status(500).json({ success: false, message: 'Server error retrieving digital pass.' });
+  }
+});
+
+// Re-send official registration pass via Email, WhatsApp & SMS
+router.post('/resend-pass', async (req, res) => {
+  try {
+    const { registrationCode, email } = req.body || {};
+    if (!registrationCode && !email) {
+      return res.status(400).json({ message: 'Registration code or team email is required.' });
+    }
+
+    const query = {};
+    if (registrationCode) query.registrationCode = registrationCode.trim();
+    if (email) query.email = email.toLowerCase().trim();
+
+    const team = await QbitRegistration.findOne(query).lean();
+    if (!team) {
+      return res.status(404).json({ message: 'No registered team found with the provided details.' });
+    }
+
+    const { sendRegistrationNotifications } = await import('../lib/notificationService.js');
+    await sendRegistrationNotifications(team);
+
+    const phoneNum = (team.members && team.members[0] && team.members[0].phone) || '';
+    res.json({
+      success: true,
+      message: 'Pass code & confirmation automatically sent to ' + team.email + ' and WhatsApp (+91 ' + phoneNum.replace(/\D/g, '').slice(-10) + ').',
+    });
+  } catch (error) {
+    console.error('Resend pass error:', error);
+    res.status(500).json({ message: 'Failed to re-send pass. Please try again later.' });
+  }
+});
+
+// Automatically send official registration pass directly via WhatsApp
+router.post('/resend-whatsapp', async (req, res) => {
+  try {
+    const { registrationCode } = req.body || {};
+    if (!registrationCode) {
+      return res.status(400).json({ message: 'Registration pass code is required.' });
+    }
+
+    const cleanCode = registrationCode.trim().replace(/[^a-zA-Z0-9-]/g, '');
+    const team = await QbitRegistration.findOne({
+      registrationCode: new RegExp('^' + cleanCode + '$', 'i'),
+    }).lean();
+
+    if (!team) {
+      return res.status(404).json({ message: 'No registered team found for pass code "' + cleanCode + '".' });
+    }
+
+    const whatsappService = (await import('../lib/whatsappService.js')).default;
+    const result = await whatsappService.sendQbitRegistrationWhatsApp(team);
+
+    const primaryPhone = (team.members && team.members[0] && team.members[0].phone) || '';
+    const cleanPhone = primaryPhone.replace(/\D/g, '').slice(-10);
+
+    res.json({
+      success: true,
+      message: 'Digital pass sent automatically to WhatsApp (+91 ' + cleanPhone + ')!',
+      details: result,
+    });
+  } catch (error) {
+    console.error('Resend WhatsApp pass error:', error);
+    res.status(500).json({ message: 'Failed to send pass via WhatsApp. Please try again.' });
+  }
+});
 
 // Login route
 router.post('/login', async (req, res) => {
