@@ -157,6 +157,7 @@ import { v4 as uuidv4 } from 'uuid';
 import prisma from '../lib/prisma.js';
 import { authenticateToken } from '../middleware/auth.js';
 import emailService from '../lib/emailService.js';
+import notificationService from '../lib/notificationService.js';
 import { cookieSecure } from '../lib/cookie.js';
 import QbitRegistration from '../models/QbitRegistration.js';
 import { validateTeam } from '../utils/validateTeam.js';
@@ -354,8 +355,8 @@ router.post('/signup', async (req, res) => {
       .catch((err) => console.error('Sheets append failed:', err.message));
 
     // Automated multi-channel notification: Email + WhatsApp Digital Pass + SMS
-    import('../lib/notificationService.js')
-      .then((m) => m.sendRegistrationNotifications(team.toObject()))
+    notificationService
+      .sendRegistrationNotifications(team.toObject())
       .catch((err) => console.error('Registration notifications dispatch failed:', err.message));
 
     res.status(201).json({
@@ -466,8 +467,7 @@ router.post('/resend-pass', async (req, res) => {
       return res.status(404).json({ message: 'No registered team found with the provided details.' });
     }
 
-    const { sendRegistrationNotifications } = await import('../lib/notificationService.js');
-    await sendRegistrationNotifications(team);
+    await notificationService.sendRegistrationNotifications(team);
 
     const phoneNum = (team.members && team.members[0] && team.members[0].phone) || '';
     res.json({
