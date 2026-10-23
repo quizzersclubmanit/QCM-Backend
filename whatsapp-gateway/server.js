@@ -242,15 +242,43 @@ app.post('/send', async (req, res) => {
 
   try {
     const cleanPhone = to.replace(/\D/g, '').slice(-10);
-    const chatId = `91${cleanPhone}@c.us`;
+    let chatId = `91${cleanPhone}@c.us`;
+
+    // 1. Resolve registered number ID via whatsapp-web.js to fetch canonical JID/LID
+    try {
+      const numberDetails = await client.getNumberId(`91${cleanPhone}`);
+      if (numberDetails && numberDetails._serialized) {
+        chatId = numberDetails._serialized;
+        console.log(`ℹ️ [WhatsApp Gateway] Resolved number ID: ${chatId}`);
+      }
+    } catch (lookupErr) {
+      console.warn(`⚠️ [WhatsApp Gateway] Number resolution note: ${lookupErr.message}`);
+    }
 
     console.log(`📤 [WhatsApp Gateway] Sending message to ${chatId}...`);
-    const sentMsg = await client.sendMessage(chatId, message);
 
-    console.log(`✅ [WhatsApp Gateway] Message sent successfully! ID: ${sentMsg.id._serialized}`);
+    // 2. Pre-initialize chat in WAWeb internal store to prevent "No LID for user" assertion failure
+    try {
+      if (client.pupPage && !client.pupPage.isClosed()) {
+        await client.pupPage.evaluate(async (jid) => {
+          try {
+            const findChatModule = window.require ? window.require('WAWebFindChatAction') : null;
+            if (findChatModule && findChatModule.findOrCreateLatestChat) {
+              await findChatModule.findOrCreateLatestChat({ remote: jid });
+            }
+          } catch (_) {}
+        }, chatId);
+      }
+    } catch (_) {}
+
+    // 3. Dispatch message
+    const sentMsg = await client.sendMessage(chatId, message);
+    const msgId = (sentMsg && sentMsg.id && (sentMsg.id._serialized || sentMsg.id.id)) || 'SENT_OK';
+
+    console.log(`✅ [WhatsApp Gateway] Message sent successfully! ID: ${msgId}`);
     return res.json({
       success: true,
-      id: sentMsg.id._serialized,
+      id: msgId,
       to: `+91${cleanPhone}`,
     });
   } catch (err) {
